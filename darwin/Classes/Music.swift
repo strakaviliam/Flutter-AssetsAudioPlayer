@@ -186,7 +186,7 @@ public class Player : NSObject, AVAudioPlayerDelegate {
             return .success
         }
         
-        // Add handler for Pause Command
+        // Add handler for Prev Command
         commandCenter.previousTrackCommand.isEnabled = (self.notificationSettings ?? NotificationSettings()).prevEnabled
         self.targets["prev"] = commandCenter.previousTrackCommand.addTarget { [unowned self] event in
             self.channel.invokeMethod(Music.METHOD_PREV, arguments: [])
@@ -194,12 +194,23 @@ public class Player : NSObject, AVAudioPlayerDelegate {
             return .success
         }
                 
-        // Add handler for Pause Command
+        // Add handler for Next Command
         commandCenter.nextTrackCommand.isEnabled = (self.notificationSettings ?? NotificationSettings()).nextEnabled
         self.targets["next"] = commandCenter.nextTrackCommand.addTarget { [unowned self] event in
             self.channel.invokeMethod(Music.METHOD_NEXT, arguments: [])
             
             return .success
+        }
+        
+        // Add handler for Seek Command
+        if #available(iOS 9.1, *) {
+            commandCenter.changePlaybackPositionCommand.isEnabled = (self.notificationSettings ?? NotificationSettings()).seekBarEnabled
+            self.targets["seek"] = commandCenter.changePlaybackPositionCommand.addTarget { [unowned self] event in
+                let event = event as! MPChangePlaybackPositionCommandEvent
+                let position = Int(event.positionTime)
+                self.seek(to: position * 1000)
+                return .success
+            }
         }
         
         //https://stackoverflow.com/questions/34563451/set-mpnowplayinginfocenter-with-other-background-audio-playing
