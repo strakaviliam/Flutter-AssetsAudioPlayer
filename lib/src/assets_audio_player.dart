@@ -298,6 +298,14 @@ class AssetsAudioPlayer {
     _playlist.clearPlayerAudio(shuffle);
   }
 
+  void recalculatePositions() {
+    _playlist.clearPlayerAudio(false);
+  }
+
+  void setCurrentIndex(int index) {
+    _playlist.playlistIndex = index;
+  }
+
   /// Call it to dispose stream
   void dispose() {
     stop();
