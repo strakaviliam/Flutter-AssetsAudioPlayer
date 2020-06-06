@@ -492,10 +492,16 @@ public class Player : NSObject, AVAudioPlayerDelegate {
                 case .failed:
                     debugPrint("playback failed")
                     
+                    var errorCode = 500
+                    if let error = item.error, let nsError = error as? NSError {
+                        errorCode = nsError.code
+                    }
+                    
+                    
                     result(FlutterError(
                         code: "PLAY_ERROR",
                         message: "Cannot play "+assetPath,
-                        details: nil)
+                        details: errorCode)
                     );
                 @unknown default:
                     fatalError()
