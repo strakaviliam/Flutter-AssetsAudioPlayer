@@ -8,15 +8,16 @@ enum _PlayingBuilderType {
   playSpeed,
   forwardRewindSpeed,
   current,
-  isLooping,
+  loopMode,
   isBuffering,
   realtimePlayingInfos,
+  playerState,
 }
 
 typedef PlayingWidgetBuilder = Widget Function(
     BuildContext context, bool isPlaying);
-typedef IsLoopingWidgetBuilder = Widget Function(
-    BuildContext context, bool isLooping);
+typedef LoopModeWidgetBuilder = Widget Function(
+    BuildContext context, LoopMode loopMode);
 typedef VolumeWidgetBuilder = Widget Function(
     BuildContext context, double volume);
 typedef PlaySpeedWidgetBuilder = Widget Function(
@@ -31,6 +32,8 @@ typedef IsBufferingWidgetBuilder = Widget Function(
     BuildContext context, bool isBuffering);
 typedef RealtimeWidgetBuilder = Widget Function(
     BuildContext context, RealtimePlayingInfos realtimePlayingInfos);
+typedef PlayerStateBuilder = Widget Function(
+    BuildContext context, PlayerState playerState);
 
 class PlayerBuilder extends StatefulWidget {
   final AssetsAudioPlayer player;
@@ -49,12 +52,10 @@ class PlayerBuilder extends StatefulWidget {
         this.builderType = _PlayingBuilderType.isBuffering,
         super(key: key);
 
-  const PlayerBuilder.isLooping(
-      {Key key,
-      @required this.player,
-      @required IsLoopingWidgetBuilder builder})
+  const PlayerBuilder.loopMode(
+      {Key key, @required this.player, @required LoopModeWidgetBuilder builder})
       : this.builder = builder,
-        this.builderType = _PlayingBuilderType.isLooping,
+        this.builderType = _PlayingBuilderType.loopMode,
         super(key: key);
 
   const PlayerBuilder.realtimePlayingInfos(
@@ -95,6 +96,12 @@ class PlayerBuilder extends StatefulWidget {
         this.builderType = _PlayingBuilderType.current,
         super(key: key);
 
+  const PlayerBuilder.playerState(
+      {Key key, @required this.player, @required PlayerStateBuilder builder})
+      : this.builder = builder,
+        this.builderType = _PlayingBuilderType.playerState,
+        super(key: key);
+
   @override
   _PlayerBuilderState createState() => _PlayerBuilderState();
 }
@@ -121,10 +128,10 @@ class _PlayerBuilderState extends State<PlayerBuilder> {
           },
         );
         break;
-      case _PlayingBuilderType.isLooping:
+      case _PlayingBuilderType.loopMode:
         return StreamBuilder(
-          stream: widget.player.isLooping,
-          initialData: false,
+          stream: widget.player.loopMode,
+          initialData: LoopMode.none,
           builder: (context, snap) {
             return this.widget.builder(context, snap.data);
           },
@@ -184,6 +191,49 @@ class _PlayerBuilderState extends State<PlayerBuilder> {
           },
         );
         break;
+      case _PlayingBuilderType.playerState:
+        return StreamBuilder(
+          stream: widget.player.playerState,
+          initialData: PlayerState.stop,
+          builder: (context, snap) {
+            return this.widget.builder(context, snap.data);
+          },
+        );
+        break;
+    }
+    return SizedBox();
+  }
+}
+
+class PlayerGroupBuilder extends StatefulWidget {
+  final AssetsAudioPlayerGroup player;
+  final dynamic builder;
+  final _PlayingBuilderType builderType;
+
+  const PlayerGroupBuilder.isPlaying(
+      {Key key, @required this.player, @required PlayingWidgetBuilder builder})
+      : this.builder = builder,
+        this.builderType = _PlayingBuilderType.isPlaying,
+        super(key: key);
+
+  @override
+  createState() => _PlayerBuilderGroupState();
+}
+
+class _PlayerBuilderGroupState extends State<PlayerGroupBuilder> {
+  @override
+  Widget build(BuildContext context) {
+    switch (widget.builderType) {
+      case _PlayingBuilderType.isPlaying:
+        return StreamBuilder(
+          stream: widget.player.isPlaying,
+          initialData: false,
+          builder: (context, snap) {
+            return this.widget.builder(context, snap.data);
+          },
+        );
+        break;
+      default: /* do nothing */
     }
     return SizedBox();
   }

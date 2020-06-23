@@ -22,11 +22,11 @@ extension AssetAudioPlayerBuilder on AssetsAudioPlayer {
         builder: builder,
       );
 
-  PlayerBuilder builderIsLooping({
+  PlayerBuilder builderLoopMode({
     Key key,
-    @required IsLoopingWidgetBuilder builder,
+    @required LoopModeWidgetBuilder builder,
   }) =>
-      PlayerBuilder.isLooping(
+      PlayerBuilder.loopMode(
         key: key,
         player: this,
         builder: builder,
@@ -87,6 +87,28 @@ extension AssetAudioPlayerBuilder on AssetsAudioPlayer {
     @required CurrentWidgetBuilder builder,
   }) =>
       PlayerBuilder.current(
+        key: key,
+        player: this,
+        builder: builder,
+      );
+
+  PlayerBuilder builderPlayerState({
+    Key key,
+    @required PlayerStateBuilder builder,
+  }) =>
+      PlayerBuilder.playerState(
+        key: key,
+        player: this,
+        builder: builder,
+      );
+}
+
+extension AssetAudioPlayerGroupBuilder on AssetsAudioPlayerGroup {
+  PlayerGroupBuilder builderIsPlaying({
+    Key key,
+    @required PlayingWidgetBuilder builder,
+  }) =>
+      PlayerGroupBuilder.isPlaying(
         key: key,
         player: this,
         builder: builder,

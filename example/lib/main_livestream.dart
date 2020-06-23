@@ -1,11 +1,7 @@
-import 'dart:io';
-
 import 'package:assets_audio_player/assets_audio_player.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 
-final streamUrl = "http://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio1_mf_p";
+final streamUrl = "https://18843.live.streamtheworld.com/WBBRAMAAC48/HLS/playlist.m3u8";
 
 void main() => runApp(MyApp());
 
@@ -45,7 +41,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-                  Player(streamUrl),
+            Player(streamUrl),
           ],
         ),
       ),
@@ -68,7 +64,16 @@ class _PlayerState extends State<Player> {
   @override
   void initState() {
     super.initState();
-    _player.open(Audio.liveStream(this.widget.streamPath), autoStart: false);
+    _player.open(
+      Audio.liveStream(this.widget.streamPath),
+      autoStart: false,
+      showNotification: true,
+      notificationSettings: NotificationSettings(
+        nextEnabled: false,
+        prevEnabled: false,
+        stopEnabled: false
+      ),
+    );
   }
 
   @override
@@ -78,7 +83,7 @@ class _PlayerState extends State<Player> {
         PlayerBuilder.isBuffering(
           player: _player,
           builder: (context, isBuffering) {
-            if(isBuffering){
+            if (isBuffering) {
               return Text("Buffering");
             } else {
               return SizedBox(); //empty

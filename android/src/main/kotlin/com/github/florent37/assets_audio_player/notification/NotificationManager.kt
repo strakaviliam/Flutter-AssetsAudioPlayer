@@ -12,11 +12,7 @@ class NotificationManager(private val context: Context) {
         if(closed)
             return
         if(stop){
-            context.startService(Intent(context, NotificationService::class.java).apply {
-                putExtra(NotificationService.EXTRA_NOTIFICATION_ACTION, NotificationAction.Hide(
-                        playerId = playerId
-                ))
-            })
+            stopNotification()
         } else {
             context.startService(Intent(context, NotificationService::class.java).apply {
                 putExtra(NotificationService.EXTRA_NOTIFICATION_ACTION, NotificationAction.Show(
@@ -31,7 +27,14 @@ class NotificationManager(private val context: Context) {
         AssetsAudioPlayerPlugin.instance?.assetsAudioPlayer?.registerLastPlayerWithNotif(playerId)
     }
 
-    fun hideNotification(definitively: Boolean = false) {
+    fun stopNotification(){
+        context.startService(Intent(context, NotificationService::class.java).apply {
+            putExtra(NotificationService.EXTRA_NOTIFICATION_ACTION, NotificationAction.Hide(
+            ))
+        })
+    }
+
+    fun hideNotificationService(definitively: Boolean = false) {
         //if remainingNotif == 0, stop
         context.stopService(Intent(context, NotificationService::class.java))
         closed = definitively

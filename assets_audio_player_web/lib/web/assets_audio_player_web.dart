@@ -86,6 +86,12 @@ class AssetsAudioPlayerWebPlugin {
         _getOrCreate(id).forwardRewind(speed);
         return Future.value(true);
         break;
+      case "loopSingleAudio":
+        final String id = call.arguments["id"];
+        final bool loop = call.arguments["loop"];
+        _getOrCreate(id).loopSingleAudio(loop);
+        return Future.value(true);
+        break;
       case "seek":
         final String id = call.arguments["id"];
         final double to = call.arguments["to"];
@@ -101,12 +107,14 @@ class AssetsAudioPlayerWebPlugin {
         final double volume = call.arguments["volume"];
         final double seek = call.arguments["seek"];
         final bool autoStart = call.arguments["autoStart"] ?? true;
+        final Map networkHeaders = call.arguments["networkHeaders"];
         return _getOrCreate(id).open(
           path: path,
           audioType: audioType,
           volume: volume,
           seek: seek,
           autoStart: autoStart,
+          networkHeaders: networkHeaders,
         );
         break;
     }

@@ -2,18 +2,19 @@ package com.github.florent37.assets_audio_player
 
 import StopWhenCall
 import StopWhenCallAudioFocus
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import androidx.annotation.NonNull
-import com.github.florent37.assets_audio_player.notification.MediaButtonsReceiver
-import com.github.florent37.assets_audio_player.notification.NotificationManager
-import com.github.florent37.assets_audio_player.notification.fetchAudioMetas
-import com.github.florent37.assets_audio_player.notification.fetchNotificationSettings
+import com.github.florent37.assets_audio_player.notification.*
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
-
+import io.flutter.plugin.common.PluginRegistry
 
 internal val METHOD_POSITION = "player.position"
 internal val METHOD_VOLUME = "player.volume"
@@ -27,8 +28,12 @@ internal val METHOD_NEXT = "player.next"
 internal val METHOD_PREV = "player.prev"
 internal val METHOD_PLAY_OR_PAUSE = "player.playOrPause"
 internal val METHOD_NOTIFICATION_STOP = "player.stop"
+internal val METHOD_ERROR = "player.error"
 
-class AssetsAudioPlayerPlugin : FlutterPlugin {
+class AssetsAudioPlayerPlugin : FlutterPlugin,PluginRegistry.NewIntentListener, ActivityAware {
+
+    var myActivity: Activity? = null
+    var notificationChannel : MethodChannel ?= null
 
     companion object {
         var instance: AssetsAudioPlayerPlugin? = null
@@ -38,6 +43,7 @@ class AssetsAudioPlayerPlugin : FlutterPlugin {
 
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         instance = this
+        notificationChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "assets_audio_player_notification")
         assetsAudioPlayer = AssetsAudioPlayer(
                 flutterAssets = flutterPluginBinding.flutterAssets,
                 context = flutterPluginBinding.applicationContext,
@@ -49,6 +55,48 @@ class AssetsAudioPlayerPlugin : FlutterPlugin {
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         assetsAudioPlayer?.unregister()
         instance = null
+    }
+
+    private fun sendNotificationPayloadMessage(intent: Intent): Boolean? {
+        if (NotificationAction.ACTION_SELECT == intent.action) {
+            val trackId = intent.getStringExtra(NotificationService.TRACK_ID)
+            notificationChannel?.invokeMethod("selectNotification", trackId)
+            return true
+        }
+        return false
+    }
+
+    override fun onNewIntent(intent: Intent?): Boolean {
+        if(intent == null)
+            return false
+
+        if (!intent.getBooleanExtra("isVisited", false)) {
+            val res = sendNotificationPayloadMessage(intent) ?: false
+            if (res && myActivity != null) {
+                myActivity?.intent = intent
+                intent.putExtra("isVisited", true)
+            }
+            return res
+        }
+        return false
+    }
+
+    override fun onDetachedFromActivity() {
+        myActivity = null
+    }
+
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        binding.addOnNewIntentListener(this)
+        myActivity = binding.activity
+    }
+
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        binding.addOnNewIntentListener(this)
+        myActivity = binding.activity;
+    }
+
+    override fun onDetachedFromActivityForConfigChanges() {
+        myActivity = null
     }
 }
 
@@ -90,9 +138,9 @@ class AssetsAudioPlayer(
     }
 
     fun unregister() {
-        stopWhenCall?.stop()
-        notificationManager.hideNotification(definitively = true)
-        stopWhenCall?.unregister(stopWhenCallListener)
+        stopWhenCall.stop()
+        notificationManager.hideNotificationService(definitively = true)
+        stopWhenCall.unregister(stopWhenCallListener)
         players.values.forEach {
             it.stop()
         }
@@ -112,7 +160,7 @@ class AssetsAudioPlayer(
                     context = context,
                     id = id,
                     notificationManager = notificationManager,
-                    stopWhenCall = stopWhenCall!!,
+                    stopWhenCall = stopWhenCall,
                     flutterAssets = flutterAssets
             )
             player.apply {
@@ -125,8 +173,8 @@ class AssetsAudioPlayer(
                 onPlaySpeedChanged = { speed ->
                     channel.invokeMethod(METHOD_PLAY_SPEED, speed)
                 }
-                onPositionChanged = { position ->
-                    channel.invokeMethod(METHOD_POSITION, position)
+                onPositionMSChanged = { positionMS ->
+                    channel.invokeMethod(METHOD_POSITION, positionMS)
                 }
                 onReadyToPlay = { totalDurationMs ->
                     channel.invokeMethod(METHOD_CURRENT, mapOf(
@@ -157,6 +205,12 @@ class AssetsAudioPlayer(
                 }
                 onNotificationStop = {
                     channel.invokeMethod(METHOD_NOTIFICATION_STOP, null)
+                }
+                onError = {
+                    channel.invokeMethod(METHOD_ERROR, mapOf(
+                            "type" to it.type,
+                            "message" to it.message
+                        ))
                 }
             }
             return@getOrPut player
@@ -211,7 +265,8 @@ class AssetsAudioPlayer(
                         result.error("WRONG_FORMAT", "The specified argument (id) must be an String.", null)
                         return
                     }
-                    getOrCreatePlayer(id).stop()
+                    val removeNotification = args["removeNotification"] as? Boolean ?: true
+                    getOrCreatePlayer(id).stop(removeNotification= removeNotification)
                     result.success(null)
                 } ?: run {
                     result.error("WRONG_FORMAT", "The specified argument must be an Map<*, Any>.", null)
@@ -252,6 +307,23 @@ class AssetsAudioPlayer(
                     return
                 }
             }
+            "showNotification" -> {
+                (call.arguments as? Map<*, *>)?.let { args ->
+                    val id = args["id"] as? String ?: run {
+                        result.error("WRONG_FORMAT", "The specified argument (id) must be an String.", null)
+                        return
+                    }
+                    val show = args["show"] as? Boolean ?: run {
+                        result.error("WRONG_FORMAT", "The specified argument (show) must be an Boolean.", null)
+                        return
+                    }
+                    getOrCreatePlayer(id).showNotification(show)
+                    result.success(null)
+                } ?: run {
+                    result.error("WRONG_FORMAT", "The specified argument must be an Map<*, Any>.", null)
+                    return
+                }
+            }
             "forwardRewind" -> {
                 (call.arguments as? Map<*, *>)?.let { args ->
                     val id = args["id"] as? String ?: run {
@@ -286,6 +358,23 @@ class AssetsAudioPlayer(
                     return
                 }
             }
+            "loopSingleAudio" -> {
+                (call.arguments as? Map<*, *>)?.let { args ->
+                    val id = args["id"] as? String ?: run {
+                        result.error("WRONG_FORMAT", "The specified argument (id) must be an String.", null)
+                        return
+                    }
+                    val loop = args["loop"] as? Boolean ?: run {
+                        result.error("WRONG_FORMAT", "The specified argument(loop) must be an Boolean.", null)
+                        return
+                    }
+                    getOrCreatePlayer(id).loopSingleAudio(loop)
+                    result.success(null)
+                } ?: run {
+                    result.error("WRONG_FORMAT", "The specified argument must be an Map<*, Any>.", null)
+                    return
+                }
+            }
             "onAudioUpdated" -> {
                 (call.arguments as? Map<*, *>)?.let { args ->
                     val id = args["id"] as? String ?: run {
@@ -300,6 +389,38 @@ class AssetsAudioPlayer(
                     val audioMetas = fetchAudioMetas(args)
 
                     getOrCreatePlayer(id).onAudioUpdated(path, audioMetas)
+                    result.success(null)
+                } ?: run {
+                    result.error("WRONG_FORMAT", "The specified argument must be an Map<*, Any>.", null)
+                    return
+                }
+            }
+            "forceNotificationForGroup" -> {
+                (call.arguments as? Map<*, *>)?.let { args ->
+                    val id = args["id"] as? String
+                    val isPlaying = args["isPlaying"] as? Boolean ?: run {
+                        result.error("WRONG_FORMAT", "The specified argument(isPlaying) must be an Boolean.", null)
+                        return
+                    }
+                    val display = args["display"] as? Boolean ?: run {
+                        result.error("WRONG_FORMAT", "The specified argument(display) must be an Boolean.", null)
+                        return
+                    }
+
+                    val audioMetas = fetchAudioMetas(args)
+                    val notificationSettings = fetchNotificationSettings(args)
+                    
+                    if(!display){
+                        notificationManager.stopNotification()
+                    } else if(id != null) {
+                        getOrCreatePlayer(id).forceNotificationForGroup(
+                            audioMetas = audioMetas,
+                            isPlaying = isPlaying,
+                            display = display,
+                            notificationSettings= notificationSettings
+                        )
+                    }
+                   
                     result.success(null)
                 } ?: run {
                     result.error("WRONG_FORMAT", "The specified argument must be an Map<*, Any>.", null)
@@ -335,6 +456,7 @@ class AssetsAudioPlayer(
                     val displayNotification = args["displayNotification"] as? Boolean ?: false
                     val respectSilentMode = args["respectSilentMode"] as? Boolean ?: false
                     val seek = args["seek"] as? Int?
+                    val networkHeaders = args["networkHeaders"] as? Map<*, *>?
 
                     val notificationSettings = fetchNotificationSettings(args)
                     val audioMetas = fetchAudioMetas(args)
@@ -352,6 +474,7 @@ class AssetsAudioPlayer(
                             result = result,
                             playSpeed = playSpeed,
                             audioMetas = audioMetas,
+                            networkHeaders= networkHeaders,
                             context = context
                     )
                 } ?: run {
@@ -378,7 +501,7 @@ class AssetsAudioPlayer(
                         MediaButtonsReceiver.MediaButtonAction.playOrPause -> player.askPlayOrPause()
                         MediaButtonsReceiver.MediaButtonAction.next -> player.next()
                         MediaButtonsReceiver.MediaButtonAction.prev -> player.prev()
-                        MediaButtonsReceiver.MediaButtonAction.stop -> player.stop()
+                        MediaButtonsReceiver.MediaButtonAction.stop -> player.askStop()
                     }
                 }
     }
@@ -387,8 +510,6 @@ class AssetsAudioPlayer(
         lastPlayerIdWithNotificationEnabled
                 ?.let {
                     getPlayer(it)
-                }?.let { player ->
-                    player.seek(toMs)
-                }
+                }?.seek(toMs)
     }
 }

@@ -1,6 +1,55 @@
-## 2.0.0+2
+## 2.0.5+2
+
+* Added custom error handling (beta)
+* Dispose is now a future
+
+## 2.0.5
+
+* Added Cache management (beta), with Audio.network(url, cached: true)
+
+## 2.0.4+2
+
+* Added HLS, Dash, SmoothStream support on Android
+* Added `laylist.replaceAt` method
+
+## 2.0.3+6
+
+* ExoPlayer network now set `allowCrossProtocolRedirect=true` by default
+* Fixed notification hide on livestream pause (android)
+* Added custom icons for android from drawable names
+* Fixed notification texts on Samsung devices
+
+## 2.0.3+1
+
+* Added custom notification icons for Android (in AndroidManifest.xml)
+* Fixed `seek` and `seekBy` not working on the web
+* `PlayList.startIndex` is now mutable
+* Stop player then call `play` reopen it at `playlist.startIndex`
+* Increased buffer size on android/exoplayer
+* Added keepLoopMode on prev/next
+
+## 2.0.2
+
+* Breaking change : `loop` boolean now enumerate 3 values : `none`, `single` and `playlist`
+
+## 2.0.1+9
+
+* Added `.showNotification = true/false` to hide dynamically displayed notification
+* Added custom action on notif click(android)
+* Added `isBuffering` to `RealtimePlayingInfos`
+* Added `AssetsAudioPlayerGroup` (beta)
+* Added Headers in `Audio.network` & `Audio.liveStream`
+
+## 2.0.1
+
+* Added `.playerState` (play/pause/stop)
+* Stop now ping finish listeners
+
+## 2.0.0+6
 
 * Added MacOS support
+* Fixed gapeless loop (single audio)
+* Fixed audio file notification
 
 ## 1.7.0
 
